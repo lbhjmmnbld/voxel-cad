@@ -1,0 +1,1440 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>体素CAD · 终极完整版（带内嵌预览）</title>
+    <style>
+        * { box-sizing: border-box; user-select: none; }
+        body { margin:0; overflow:hidden; font-family:'Segoe UI',Arial,sans-serif; background:#111122; color:white; }
+        /* 顶部工具栏 */
+        #toolbar {
+            position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+            display: flex; gap: 6px; background: rgba(30,30,40,0.85);
+            backdrop-filter: blur(8px); padding: 6px 12px;
+            border-radius: 40px; border: 1px solid rgba(255,255,255,0.2);
+            z-index: 300; box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        .tool-btn {
+            background: transparent; border: none; color: white;
+            font-size: 14px; padding: 6px 12px; border-radius: 30px;
+            cursor: pointer; transition: 0.2s; font-weight: 500;
+            border: 1px solid transparent;
+        }
+        .tool-btn:hover { background: rgba(255,255,255,0.1); }
+        .tool-btn.active { background: #ffaa00; color: #1a1a2e; border-color: white; }
+        /* 右侧属性面板 */
+        #property-panel {
+            position: absolute; top: 80px; right: 10px; width: 260px;
+            background: rgba(30,30,40,0.9); backdrop-filter: blur(8px);
+            border-radius: 20px; padding: 12px; border: 1px solid rgba(255,255,255,0.2);
+            z-index: 300; pointer-events: auto;
+        }
+        #property-panel h3 { margin:0 0 10px; font-size:16px; text-align:center; color:#ffaa00; border-bottom:1px solid #444; padding-bottom:5px; }
+        .prop-item { margin-bottom:8px; display:flex; align-items:center; font-size:13px; }
+        .prop-label { width:70px; color:#aaa; }
+        .prop-value { flex:1; background:rgba(0,0,0,0.3); padding:4px 8px; border-radius:6px; border:1px solid #444; }
+        #prop-color { width:24px; height:24px; border-radius:4px; border:2px solid white; cursor:pointer; }
+        .size-input { width:60px; background:rgba(0,0,0,0.5); color:white; border:1px solid #666; border-radius:4px; padding:2px 4px; }
+        #prop-material { background:rgba(0,0,0,0.5); color:white; border:1px solid #666; border-radius:4px; padding:2px 4px; width:100px; }
+        #no-selection { color:#888; text-align:center; padding:15px 0; font-size:14px; }
+        /* 左侧图层控制 */
+        #layer-panel {
+            position: absolute; top: 80px; left: 10px; width: 150px;
+            background: rgba(30,30,40,0.9); backdrop-filter: blur(8px);
+            border-radius: 20px; padding: 12px; border: 1px solid rgba(255,255,255,0.2);
+            z-index: 300; font-size:12px;
+        }
+        #layer-panel h4 { margin:0 0 8px; font-size:14px; color:#ffaa00; border-bottom:1px solid #444; padding-bottom:3px; }
+        .layer-item { display:flex; align-items:center; margin-bottom:5px; }
+        .layer-item input[type="checkbox"] { margin-right:6px; width:14px; height:14px; accent-color:#ffaa00; }
+        .layer-color { width:14px; height:14px; border-radius:3px; margin-left:auto; border:1px solid white; }
+        /* 视图控制条 */
+        #view-bar {
+            position: absolute; bottom: 60px; left: 50%; transform: translateX(-50%);
+            display: flex; gap: 5px; background: rgba(30,30,40,0.8);
+            backdrop-filter: blur(8px); padding: 5px 10px; border-radius: 30px;
+            border: 1px solid rgba(255,255,255,0.2); z-index: 300;
+        }
+        .view-btn { background:transparent; border:none; color:white; padding:4px 10px; border-radius:20px; cursor:pointer; font-size:12px; }
+        .view-btn.active { background:#ffaa00; color:#1a1a2e; }
+        /* 测量提示 */
+        #measure-tip {
+            position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.8); color: #ffaa00; padding: 6px 16px;
+            border-radius: 30px; font-size: 14px; z-index: 400;
+            border: 1px solid #ffaa00; display: none;
+        }
+        /* 构件类型选择器 */
+        .type-picker {
+            position: absolute; bottom: 130px; left: 0; right: 0;
+            display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; padding: 5px;
+            z-index: 250; pointer-events: auto;
+        }
+        .type-btn {
+            border: none; padding: 5px 10px; border-radius: 20px; font-size: 12px;
+            font-weight: bold; background: rgba(30,30,40,0.8); backdrop-filter: blur(10px);
+            color: white; border: 2px solid rgba(255,255,255,0.3);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3); cursor: pointer; transition: 0.2s;
+            min-width: 60px;
+        }
+        .type-btn.active { border-color: #ffaa00; background: rgba(255,170,0,0.3); transform: scale(1.05); }
+        /* 颜色选择器 */
+        .color-picker {
+            position: absolute; bottom: 70px; left: 0; right: 0;
+            display: flex; justify-content: center; gap: 8px; padding: 8px;
+            background: rgba(30,30,40,0.8); backdrop-filter: blur(10px);
+            border-radius: 30px; width: fit-content; max-width: 90%;
+            left: 50%; transform: translateX(-50%);
+            z-index: 200; overflow-x: auto; white-space: nowrap;
+            scrollbar-width: none; box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        .color-picker::-webkit-scrollbar { display: none; }
+        .color-swatch {
+            width: 36px; height: 36px; border-radius: 18px; cursor: pointer;
+            transition: 0.2s; border: 2px solid transparent; flex-shrink: 0;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+        .color-swatch.selected { border-color: white; transform: scale(1.1); box-shadow: 0 0 15px currentColor; }
+        /* 状态栏 */
+        #status-bar {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            background: rgba(20,20,30,0.9); backdrop-filter: blur(5px);
+            color: #ccc; padding: 4px 10px; font-size: 12px;
+            display: flex; justify-content: space-between;
+            border-top: 1px solid #333; z-index: 300;
+        }
+        #coord { color: #ffaa00; }
+        #mode-indicator { color: #ffaa00; font-weight: bold; }
+        #load-file { display: none; }
+        /* 楼层选择器 */
+        #floor-selector {
+            position: absolute; top: 80px; left: 50%; transform: translateX(-50%);
+            background: rgba(30,30,40,0.9); backdrop-filter: blur(8px);
+            border-radius: 30px; padding: 5px 15px; color: white;
+            border: 1px solid #ffaa00; z-index: 350; display: flex; gap: 10px; align-items:center;
+        }
+        #floor-selector select { background: #222; color: white; border: 1px solid #ffaa00; border-radius: 20px; padding: 5px; }
+        #floor-selector button { background:#ffaa00; border:none; color:#1a1a2e; border-radius:20px; padding:4px 10px; cursor:pointer; font-weight:bold; }
+        /* 预览弹窗 */
+        #preview-overlay {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.9); z-index: 1000; display: none;
+            backdrop-filter: blur(5px);
+        }
+        #preview-canvas {
+            width: 100%; height: 100%;
+        }
+        #preview-close {
+            position: absolute; top: 20px; right: 20px;
+            background: #ffaa00; color: #1a1a2e;
+            border: none; border-radius: 30px; padding: 10px 20px;
+            font-weight: bold; z-index: 1001; cursor: pointer;
+        }
+        #preview-info {
+            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.7); color: white;
+            padding: 8px 20px; border-radius: 40px; font-size: 14px;
+            pointer-events: none; z-index: 1001;
+        }
+    </style>
+    <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+    <div id="toolbar">
+        <button class="tool-btn" id="file-save">💾 保存</button>
+        <button class="tool-btn" id="file-load">📂 加载</button>
+        <button class="tool-btn" id="file-export">📐 导出</button>
+        <button class="tool-btn" id="tool-measure">📏 测量</button>
+        <button class="tool-btn" id="tool-select">🖱️ 选择</button>
+        <button class="tool-btn" id="preview-btn">👁️ 预览</button>
+    </div>
+    <div id="floor-selector">
+        <span>楼层:</span>
+        <select id="floor-select"></select>
+        <button id="add-floor">+</button>
+        <button id="del-floor">−</button>
+        <button id="rename-floor">✎</button>
+    </div>
+    <div id="view-bar">
+        <button class="view-btn active" data-view="3d">3D</button>
+        <button class="view-btn" data-view="top">平面</button>
+        <button class="view-btn" data-view="front">立面</button>
+        <button class="view-btn" data-view="left">左侧</button>
+    </div>
+    <div id="property-panel">
+        <h3>属性</h3>
+        <div id="no-selection">未选中任何构件</div>
+        <div id="prop-content" style="display:none;">
+            <div class="prop-item"><span class="prop-label">类型</span><span id="prop-type" class="prop-value">-</span></div>
+            <div class="prop-item"><span class="prop-label">坐标</span><span id="prop-xyz" class="prop-value">-</span></div>
+            <div class="prop-item"><span class="prop-label">颜色</span><div id="prop-color" class="prop-value" style="padding:2px;"></div></div>
+            <div class="prop-item"><span class="prop-label">宽度</span><input id="prop-width" class="size-input" type="number" step="0.1" min="0.2" value="0.8"></div>
+            <div class="prop-item"><span class="prop-label">深度</span><input id="prop-depth" class="size-input" type="number" step="0.1" min="0.2" value="0.8"></div>
+            <div class="prop-item"><span class="prop-label">高度</span><input id="prop-height" class="size-input" type="number" step="0.1" min="0.2" value="0.8"></div>
+            <div class="prop-item"><span class="prop-label">材质</span>
+                <select id="prop-material">
+                    <option value="concrete">混凝土</option>
+                    <option value="brick">砖</option>
+                    <option value="wood">木材</option>
+                    <option value="metal">金属</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    <div id="layer-panel">
+        <h4>图层可见性</h4>
+        <div class="layer-item"><input type="checkbox" checked data-type="wall"><span>墙</span><div class="layer-color" style="background:#7cb342;"></div></div>
+        <div class="layer-item"><input type="checkbox" checked data-type="door_single"><span>单开门</span><div class="layer-color" style="background:#b71c1c;"></div></div>
+        <div class="layer-item"><input type="checkbox" checked data-type="door_double"><span>双开门</span><div class="layer-color" style="background:#b71c1c;"></div></div>
+        <div class="layer-item"><input type="checkbox" checked data-type="door_sliding"><span>推拉门</span><div class="layer-color" style="background:#b71c1c;"></div></div>
+        <div class="layer-item"><input type="checkbox" checked data-type="window_casement"><span>平开窗</span><div class="layer-color" style="background:#42a5f5;"></div></div>
+        <div class="layer-item"><input type="checkbox" checked data-type="window_sliding"><span>推拉窗</span><div class="layer-color" style="background:#42a5f5;"></div></div>
+        <div class="layer-item"><input type="checkbox" checked data-type="french_window"><span>落地窗</span><div class="layer-color" style="background:#42a5f5;"></div></div>
+        <div class="layer-item"><input type="checkbox" checked data-type="stair"><span>楼梯</span><div class="layer-color" style="background:#ffb74d;"></div></div>
+        <div class="layer-item"><input type="checkbox" checked data-type="column"><span>柱</span><div class="layer-color" style="background:#9e9e9e;"></div></div>
+        <div class="layer-item"><input type="checkbox" checked data-type="beam"><span>梁</span><div class="layer-color" style="background:#8b5a2b;"></div></div>
+        <div class="layer-item"><input type="checkbox" checked data-type="slab"><span>楼板</span><div class="layer-color" style="background:#00cccc;"></div></div>
+    </div>
+    <div id="measure-tip"></div>
+    <div class="type-picker" id="typePickerContainer"></div>
+    <div id="colorPickerContainer"></div>
+    <div id="status-bar">
+        <span>坐标: <span id="coord">0,0,0</span></span>
+        <span id="mode-indicator">建造模式</span>
+        <span>构件数: <span id="count-display">0</span></span>
+    </div>
+    <input type="file" id="load-file" accept=".json">
+
+    <div style="position:absolute; bottom:120px; right:20px; z-index:350;">
+        <button id="gridBtn" style="background:#ffaa00; border:none; border-radius:30px; padding:8px 16px; color:#1a1a2e; font-weight:bold; cursor:pointer;">📐 轴网</button>
+    </div>
+
+    <!-- 预览弹窗 -->
+    <div id="preview-overlay">
+        <canvas id="preview-canvas"></canvas>
+        <button id="preview-close">✖ 关闭预览</button>
+        <div id="preview-info">双指缩放 / 拖拽平移 | 当前楼层平面图</div>
+    </div>
+
+    <script>
+        (function() {
+            // --- 初始化场景 ---
+            const scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x111122);
+
+            const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(12, 10, 18);
+            camera.lookAt(0, 3, 0);
+
+            const renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            document.body.appendChild(renderer.domElement);
+
+            const controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 2;
+            controls.target.set(0, 3, 0);
+
+            // --- 灯光 ---
+            const ambientLight = new THREE.AmbientLight(0x404060);
+            scene.add(ambientLight);
+            const dirLight = new THREE.DirectionalLight(0xfff5d1, 1.2);
+            dirLight.position.set(10, 20, 10);
+            dirLight.castShadow = true;
+            dirLight.receiveShadow = true;
+            dirLight.shadow.mapSize.width = 1024;
+            dirLight.shadow.mapSize.height = 1024;
+            dirLight.shadow.camera.near = 1;
+            dirLight.shadow.camera.far = 30;
+            scene.add(dirLight);
+            const fillLight = new THREE.DirectionalLight(0xccddff, 0.4);
+            fillLight.position.set(-10, 5, -10);
+            scene.add(fillLight);
+
+            const gridHelper = new THREE.GridHelper(30, 30, 0xaaaaaa, 0x444444);
+            gridHelper.position.y = -0.5;
+            scene.add(gridHelper);
+
+            // --- 项目数据 ---
+            let project = {
+                floors: [
+                    { id: 1, name: '1F', height: 3000, sort: 0 }
+                ],
+                currentFloorId: 1,
+                grids: { x: [], y: [] },
+                dimensions: []
+            };
+            let voxels = []; // 所有构件，每个含 floorId
+
+            const baseSize = 0.8;
+
+            const colors = [
+                0x7cb342, 0x8d6e63, 0x9e9e9e, 0x8b5a2b, 0x66bb6a, 0xf0e68c,
+                0xb71c1c, 0x42a5f5, 0xffb74d, 0xff69b4, 0xaa00ff, 0x00cccc
+            ];
+            let currentColorIndex = 0;
+            let currentColor = colors[currentColorIndex];
+
+            const typeDefs = [
+                { type: 'wall', label: '墙', subType: '', layer: 'A-WALL' },
+                { type: 'door_single', label: '单开门', subType: 'single', layer: 'A-DOOR' },
+                { type: 'door_double', label: '双开门', subType: 'double', layer: 'A-DOOR' },
+                { type: 'door_sliding', label: '推拉门', subType: 'sliding', layer: 'A-DOOR' },
+                { type: 'window_casement', label: '平开窗', subType: 'casement', layer: 'A-WINDOW' },
+                { type: 'window_sliding', label: '推拉窗', subType: 'sliding', layer: 'A-WINDOW' },
+                { type: 'french_window', label: '落地窗', subType: 'french', layer: 'A-WINDOW' },
+                { type: 'stair', label: '楼梯', subType: '', layer: 'A-STAIR' },
+                { type: 'column', label: '柱', subType: '', layer: 'A-COLUMN' },
+                { type: 'beam', label: '梁', subType: '', layer: 'A-BEAM' },
+                { type: 'slab', label: '楼板', subType: '', layer: 'A-SLAB' }
+            ];
+            let currentType = 'wall';
+            let currentSubType = '';
+
+            const materials = ['concrete', 'brick', 'wood', 'metal'];
+
+            // 获取当前楼层构件
+            function getCurrentVoxels() {
+                return voxels.filter(v => v.floorId === project.currentFloorId);
+            }
+
+            // 预置地基（1F）
+            function resetWorld() {
+                voxels = [];
+                for (let x = -2; x <= 2; x++) {
+                    for (let z = -2; z <= 2; z++) {
+                        voxels.push({
+                            floorId: 1,
+                            x, y: 0, z,
+                            type: 'wall', subType: '',
+                            color: 0x8d6e63,
+                            orientation: new THREE.Vector3(0,1,0),
+                            width: baseSize, depth: baseSize, height: baseSize,
+                            material: 'concrete'
+                        });
+                    }
+                }
+                voxels.push({
+                    floorId: 1,
+                    x: 0, y: 1, z: 0, type: 'column', subType: '',
+                    color: 0x9e9e9e, orientation: new THREE.Vector3(0,1,0),
+                    width: baseSize*0.8, depth: baseSize*0.8, height: baseSize,
+                    material: 'concrete'
+                });
+                voxels.push({
+                    floorId: 1,
+                    x: 1, y: 1, z: 0, type: 'column', subType: '',
+                    color: 0x9e9e9e, orientation: new THREE.Vector3(0,1,0),
+                    width: baseSize*0.8, depth: baseSize*0.8, height: baseSize,
+                    material: 'concrete'
+                });
+                voxels.push({
+                    floorId: 1,
+                    x: 0, y: 1, z: 1, type: 'column', subType: '',
+                    color: 0x9e9e9e, orientation: new THREE.Vector3(0,1,0),
+                    width: baseSize*0.8, depth: baseSize*0.8, height: baseSize,
+                    material: 'concrete'
+                });
+                rebuildMesh();
+            }
+
+            const geometry = new THREE.BoxGeometry(1, 1, 1);
+            const material = new THREE.MeshStandardMaterial({ roughness: 0.4, metalness: 0.1 });
+            let mesh;
+            let instanceIdToVoxelIndex = new Map(); // 实例索引 -> 全局voxels索引
+
+            function rebuildMesh() {
+                if (mesh) scene.remove(mesh);
+                const visibleLayers = new Set();
+                document.querySelectorAll('#layer-panel input[type="checkbox"]:checked').forEach(cb => {
+                    visibleLayers.add(cb.dataset.type);
+                });
+                const currentVoxels = getCurrentVoxels();
+                const filtered = currentVoxels.filter(v => visibleLayers.has(v.type));
+
+                mesh = new THREE.InstancedMesh(geometry, material, filtered.length);
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+
+                const dummy = new THREE.Object3D();
+                instanceIdToVoxelIndex.clear();
+                filtered.forEach((v, i) => {
+                    dummy.position.set(v.x * baseSize, v.y * baseSize + v.height/2, v.z * baseSize);
+                    dummy.scale.set(v.width / 1, v.height / 1, v.depth / 1);
+                    dummy.updateMatrix();
+                    mesh.setMatrixAt(i, dummy.matrix);
+                    mesh.setColorAt(i, new THREE.Color(v.color));
+                    const globalIndex = voxels.findIndex(vv => vv === v);
+                    instanceIdToVoxelIndex.set(i, globalIndex);
+                });
+                mesh.instanceMatrix.needsUpdate = true;
+                mesh.instanceColor.needsUpdate = true;
+                scene.add(mesh);
+                document.getElementById('count-display').textContent = currentVoxels.length;
+            }
+
+            resetWorld();
+
+            document.querySelectorAll('#layer-panel input[type="checkbox"]').forEach(cb => {
+                cb.addEventListener('change', rebuildMesh);
+            });
+
+            // --- 射线检测与事件 ---
+            const raycaster = new THREE.Raycaster();
+            const mouse = new THREE.Vector2();
+
+            let longPressTimer = null;
+            let longPressTargetGlobalIndex = null;
+            let downTime = 0;
+            let downPos = { x: 0, y: 0 };
+            const LONGPRESS_DELAY = 500;
+
+            let progressSprite = null;
+            const progressCanvas = document.createElement('canvas');
+            progressCanvas.width = 64; progressCanvas.height = 64;
+            const progressCtx = progressCanvas.getContext('2d');
+
+            function createProgressTexture(progress) {
+                progressCtx.clearRect(0, 0, 64, 64);
+                progressCtx.beginPath(); progressCtx.arc(32,32,24,0,2*Math.PI);
+                progressCtx.strokeStyle = 'rgba(255,255,255,0.3)'; progressCtx.lineWidth=6; progressCtx.stroke();
+                progressCtx.beginPath(); progressCtx.arc(32,32,24,0,2*Math.PI*progress);
+                progressCtx.strokeStyle = '#ff4444'; progressCtx.lineWidth=6; progressCtx.stroke();
+                progressCtx.font = 'bold 16px Arial'; progressCtx.fillStyle = 'white';
+                progressCtx.textAlign = 'center'; progressCtx.textBaseline = 'middle';
+                progressCtx.fillText(Math.round(progress*100)+'%', 32, 32);
+                return new THREE.CanvasTexture(progressCanvas);
+            }
+
+            function showProgress(worldPos) {
+                const mat = new THREE.SpriteMaterial({ map: createProgressTexture(0), depthTest: false, depthWrite: false, transparent: true });
+                progressSprite = new THREE.Sprite(mat);
+                progressSprite.scale.set(baseSize * 0.4, baseSize * 0.4, 1);
+                progressSprite.position.copy(worldPos);
+                scene.add(progressSprite);
+            }
+
+            function hideProgress() {
+                if (progressSprite) { scene.remove(progressSprite); progressSprite = null; }
+            }
+
+            function updateProgress() {
+                if (!longPressTimer) return;
+                const elapsed = Date.now() - downTime;
+                const progress = Math.min(elapsed / LONGPRESS_DELAY, 1);
+                if (progressSprite) {
+                    progressSprite.material.map = createProgressTexture(progress);
+                    progressSprite.material.needsUpdate = true;
+                }
+                if (elapsed >= LONGPRESS_DELAY) {
+                    if (longPressTargetGlobalIndex !== null && longPressTargetGlobalIndex < voxels.length) {
+                        voxels.splice(longPressTargetGlobalIndex, 1);
+                        rebuildMesh();
+                    }
+                    hideProgress();
+                    longPressTimer = null;
+                    longPressTargetGlobalIndex = null;
+                } else {
+                    requestAnimationFrame(updateProgress);
+                }
+            }
+
+            function getClientCoord(e) {
+                if (e.touches) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                else return { x: e.clientX, y: e.clientY };
+            }
+
+            function onPointerDown(e) {
+                e.preventDefault();
+                const coord = getClientCoord(e);
+                mouse.x = (coord.x / renderer.domElement.clientWidth) * 2 - 1;
+                mouse.y = -(coord.y / renderer.domElement.clientHeight) * 2 + 1;
+                downTime = Date.now();
+                downPos = { x: coord.x, y: coord.y };
+
+                raycaster.setFromCamera(mouse, camera);
+                const intersects = raycaster.intersectObject(mesh);
+                if (intersects.length > 0) {
+                    const instanceIndex = intersects[0].instanceId;
+                    const globalIndex = instanceIdToVoxelIndex.get(instanceIndex);
+                    if (globalIndex !== undefined) {
+                        longPressTargetGlobalIndex = globalIndex;
+                        const v = voxels[globalIndex];
+                        const worldPos = new THREE.Vector3(v.x * baseSize, v.y * baseSize + v.height/2, v.z * baseSize);
+                        showProgress(worldPos);
+                        longPressTimer = requestAnimationFrame(updateProgress);
+                    }
+                } else {
+                    longPressTargetGlobalIndex = null;
+                }
+            }
+
+            function onPointerMove(e) {
+                if (longPressTimer) {
+                    const coord = getClientCoord(e);
+                    const dx = Math.abs(coord.x - downPos.x);
+                    const dy = Math.abs(coord.y - downPos.y);
+                    if (dx > 20 || dy > 20) {
+                        cancelLongPress();
+                    }
+                }
+            }
+
+            function cancelLongPress() {
+                if (longPressTimer) { cancelAnimationFrame(longPressTimer); longPressTimer = null; }
+                hideProgress();
+                longPressTargetGlobalIndex = null;
+            }
+
+            const MODE_BUILD = 'build', MODE_SELECT = 'select', MODE_MEASURE = 'measure';
+            let currentMode = MODE_BUILD;
+            let measurePoints = [];
+
+            document.getElementById('tool-measure').addEventListener('click', () => setMode(MODE_MEASURE));
+            document.getElementById('tool-select').addEventListener('click', () => setMode(MODE_SELECT));
+            document.getElementById('tool-measure').addEventListener('dblclick', () => setMode(MODE_BUILD));
+            document.getElementById('tool-select').addEventListener('dblclick', () => setMode(MODE_BUILD));
+
+            function setMode(mode) {
+                currentMode = mode;
+                document.querySelectorAll('#toolbar .tool-btn').forEach(btn => btn.classList.remove('active'));
+                if (mode === MODE_MEASURE) {
+                    document.getElementById('tool-measure').classList.add('active');
+                    document.getElementById('mode-indicator').textContent = '测量模式';
+                    measurePoints = [];
+                    document.getElementById('measure-tip').style.display = 'none';
+                } else if (mode === MODE_SELECT) {
+                    document.getElementById('tool-select').classList.add('active');
+                    document.getElementById('mode-indicator').textContent = '选择模式';
+                } else {
+                    document.getElementById('mode-indicator').textContent = '建造模式';
+                }
+            }
+
+            function handleMeasure(point) {
+                if (currentMode !== MODE_MEASURE) return false;
+                measurePoints.push(point.clone());
+                if (measurePoints.length === 2) {
+                    const p1 = measurePoints[0], p2 = measurePoints[1];
+                    const dist = p1.distanceTo(p2);
+                    const scale = 300;
+                    const distMM = dist * scale;
+                    document.getElementById('measure-tip').style.display = 'block';
+                    document.getElementById('measure-tip').textContent = `距离: ${distMM.toFixed(1)} mm`;
+                    if (confirm('是否将此测量保存为永久标注？')) {
+                        const dim = {
+                            floorId: project.currentFloorId,
+                            type: 'linear',
+                            p1: [p1.x, p1.z],
+                            p2: [p2.x, p2.z],
+                            text: distMM.toFixed(0) + 'mm',
+                            layer: 'A-DIM'
+                        };
+                        project.dimensions.push(dim);
+                    }
+                    measurePoints = [];
+                    setTimeout(() => document.getElementById('measure-tip').style.display = 'none', 3000);
+                } else {
+                    document.getElementById('measure-tip').style.display = 'block';
+                    document.getElementById('measure-tip').textContent = '请点击第二个点';
+                }
+                return true;
+            }
+
+            function selectInstance(globalIndex) {
+                if (globalIndex === undefined || globalIndex < 0 || globalIndex >= voxels.length) {
+                    document.getElementById('no-selection').style.display = 'block';
+                    document.getElementById('prop-content').style.display = 'none';
+                    return;
+                }
+                const v = voxels[globalIndex];
+                document.getElementById('no-selection').style.display = 'none';
+                document.getElementById('prop-content').style.display = 'block';
+                document.getElementById('prop-type').textContent = v.type;
+                document.getElementById('prop-xyz').textContent = `${v.x},${v.y},${v.z}`;
+                const colorDiv = document.getElementById('prop-color');
+                colorDiv.style.backgroundColor = '#' + new THREE.Color(v.color).getHexString();
+                const widthInput = document.getElementById('prop-width');
+                const depthInput = document.getElementById('prop-depth');
+                const heightInput = document.getElementById('prop-height');
+                widthInput.value = v.width.toFixed(2);
+                depthInput.value = v.depth.toFixed(2);
+                heightInput.value = v.height.toFixed(2);
+                const materialSelect = document.getElementById('prop-material');
+                materialSelect.value = v.material || 'concrete';
+
+                const onChange = () => {
+                    v.width = parseFloat(widthInput.value) || baseSize;
+                    v.depth = parseFloat(depthInput.value) || baseSize;
+                    v.height = parseFloat(heightInput.value) || baseSize;
+                    v.material = materialSelect.value;
+                    rebuildMesh();
+                };
+                widthInput.onchange = onChange;
+                depthInput.onchange = onChange;
+                heightInput.onchange = onChange;
+                materialSelect.onchange = onChange;
+
+                colorDiv.onclick = () => {
+                    let idx = colors.indexOf(v.color);
+                    if (idx === -1) idx = 0;
+                    idx = (idx + 1) % colors.length;
+                    v.color = colors[idx];
+                    rebuildMesh();
+                    colorDiv.style.backgroundColor = '#' + new THREE.Color(v.color).getHexString();
+                };
+            }
+
+            function handleModeAction() {
+                if (currentMode === MODE_BUILD) {
+                    raycaster.setFromCamera(mouse, camera);
+                    const intersects = raycaster.intersectObject(mesh);
+
+                    if (intersects.length > 0) {
+                        const instanceIndex = intersects[0].instanceId;
+                        const globalIndex = instanceIdToVoxelIndex.get(instanceIndex);
+                        if (globalIndex === undefined) return;
+                        const clickedVoxel = voxels[globalIndex];
+                        const normal = intersects[0].face.normal;
+                        let dx = 0, dy = 0, dz = 0;
+                        if (normal.x > 0.5) dx = 1;
+                        else if (normal.x < -0.5) dx = -1;
+                        else if (normal.y > 0.5) dy = 1;
+                        else if (normal.y < -0.5) dy = -1;
+                        else if (normal.z > 0.5) dz = 1;
+                        else if (normal.z < -0.5) dz = -1;
+                        const newX = clickedVoxel.x + dx, newY = clickedVoxel.y + dy, newZ = clickedVoxel.z + dz;
+                        const currentVoxels = getCurrentVoxels();
+                        if (newY >= 0 && !currentVoxels.some(v => v.x === newX && v.y === newY && v.z === newZ)) {
+                            voxels.push({
+                                floorId: project.currentFloorId,
+                                x: newX, y: newY, z: newZ,
+                                type: currentType,
+                                subType: currentSubType,
+                                color: currentColor,
+                                orientation: new THREE.Vector3(dx, dy, dz),
+                                width: baseSize, depth: baseSize, height: baseSize,
+                                material: 'concrete'
+                            });
+                            rebuildMesh();
+                        }
+                    } else {
+                        const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.5);
+                        const target = new THREE.Vector3();
+                        if (raycaster.ray.intersectPlane(groundPlane, target)) {
+                            const gx = Math.round(target.x / baseSize);
+                            const gz = Math.round(target.z / baseSize);
+                            const newY = 0;
+                            const currentVoxels = getCurrentVoxels();
+                            if (!currentVoxels.some(v => v.x === gx && v.y === newY && v.z === gz)) {
+                                voxels.push({
+                                    floorId: project.currentFloorId,
+                                    x: gx, y: newY, z: gz,
+                                    type: currentType,
+                                    subType: currentSubType,
+                                    color: currentColor,
+                                    orientation: new THREE.Vector3(0, 1, 0),
+                                    width: baseSize, depth: baseSize, height: baseSize,
+                                    material: 'concrete'
+                                });
+                                rebuildMesh();
+                            }
+                        }
+                    }
+                } else if (currentMode === MODE_MEASURE) {
+                    raycaster.setFromCamera(mouse, camera);
+                    const intersects = raycaster.intersectObject(mesh);
+                    if (intersects.length > 0) {
+                        handleMeasure(intersects[0].point);
+                    } else {
+                        const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.5);
+                        const target = new THREE.Vector3();
+                        if (raycaster.ray.intersectPlane(groundPlane, target)) {
+                            handleMeasure(target);
+                        }
+                    }
+                } else if (currentMode === MODE_SELECT) {
+                    raycaster.setFromCamera(mouse, camera);
+                    const intersects = raycaster.intersectObject(mesh);
+                    if (intersects.length > 0) {
+                        const instanceIndex = intersects[0].instanceId;
+                        const globalIndex = instanceIdToVoxelIndex.get(instanceIndex);
+                        selectInstance(globalIndex);
+                    } else {
+                        selectInstance(-1);
+                    }
+                }
+            }
+
+            function onPointerUp(e) {
+                const coord = getClientCoord(e);
+                const dx = Math.abs(coord.x - downPos.x);
+                const dy = Math.abs(coord.y - downPos.y);
+                const duration = Date.now() - downTime;
+
+                if (longPressTimer) {
+                    cancelLongPress();
+                    if (duration < LONGPRESS_DELAY && dx < 10 && dy < 10) {
+                        handleModeAction();
+                    }
+                } else {
+                    if (dx < 10 && dy < 10 && duration < LONGPRESS_DELAY) {
+                        handleModeAction();
+                    }
+                }
+            }
+
+            renderer.domElement.addEventListener('touchstart', onPointerDown, { passive: false });
+            renderer.domElement.addEventListener('touchmove', onPointerMove, { passive: false });
+            renderer.domElement.addEventListener('touchend', onPointerUp, { passive: false });
+            renderer.domElement.addEventListener('touchcancel', cancelLongPress);
+            renderer.domElement.addEventListener('mousedown', onPointerDown);
+            renderer.domElement.addEventListener('mousemove', onPointerMove);
+            renderer.domElement.addEventListener('mouseup', onPointerUp);
+            renderer.domElement.addEventListener('mouseleave', cancelLongPress);
+
+            // --- UI 控件 ---
+            function createColorPicker() {
+                const container = document.getElementById('colorPickerContainer');
+                container.innerHTML = '';
+                const picker = document.createElement('div');
+                picker.className = 'color-picker';
+                colors.forEach((c, i) => {
+                    const sw = document.createElement('div');
+                    sw.className = 'color-swatch' + (i === currentColorIndex ? ' selected' : '');
+                    sw.style.backgroundColor = '#' + new THREE.Color(c).getHexString();
+                    sw.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); selectColor(i); });
+                    sw.addEventListener('mousedown', (e) => { e.preventDefault(); selectColor(i); });
+                    picker.appendChild(sw);
+                });
+                container.appendChild(picker);
+            }
+            function selectColor(i) {
+                currentColorIndex = i;
+                currentColor = colors[i];
+                document.querySelectorAll('.color-swatch').forEach((sw, idx) => sw.classList.toggle('selected', idx === i));
+                updateModeDisplay();
+            }
+            createColorPicker();
+
+            function createTypePicker() {
+                const container = document.getElementById('typePickerContainer');
+                container.innerHTML = '';
+                typeDefs.forEach(def => {
+                    const btn = document.createElement('button');
+                    btn.className = 'type-btn' + (def.type === currentType && def.subType === currentSubType ? ' active' : '');
+                    btn.dataset.type = def.type;
+                    btn.dataset.subType = def.subType || '';
+                    btn.textContent = def.label;
+                    btn.addEventListener('click', () => {
+                        document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                        currentType = def.type;
+                        currentSubType = def.subType || '';
+                        updateModeDisplay();
+                    });
+                    container.appendChild(btn);
+                });
+            }
+            createTypePicker();
+
+            function updateModeDisplay() {
+                const def = typeDefs.find(d => d.type === currentType && d.subType === currentSubType) || typeDefs[0];
+                const hex = new THREE.Color(currentColor).getHexString();
+                document.getElementById('mode-indicator').innerHTML = (currentMode === MODE_BUILD ? '建造' : currentMode === MODE_SELECT ? '选择' : '测量') + ` | ${def.label} <span style="color:#${hex}">●</span>`;
+            }
+            updateModeDisplay();
+
+            renderer.domElement.addEventListener('mousemove', (e) => {
+                const rect = renderer.domElement.getBoundingClientRect();
+                const x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+                const y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+                raycaster.setFromCamera(new THREE.Vector2(x, y), camera);
+                const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.5);
+                const target = new THREE.Vector3();
+                if (raycaster.ray.intersectPlane(groundPlane, target)) {
+                    const gx = Math.round(target.x / baseSize), gz = Math.round(target.z / baseSize);
+                    const currentVoxels = getCurrentVoxels();
+                    let height = -1;
+                    for (let y = 0; y < 15; y++) {
+                        if (currentVoxels.some(v => v.x === gx && v.y === y && v.z === gz)) height = y;
+                    }
+                    document.getElementById('coord').textContent = `${gx},${height+1},${gz}`;
+                }
+            });
+
+            document.querySelectorAll('.view-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    const v = btn.dataset.view;
+                    if (v === '3d') { camera.position.set(12,10,18); controls.target.set(0,3,0); controls.enableRotate = true; }
+                    else if (v === 'top') { camera.position.set(0,30,0); controls.target.set(0,0,0); controls.enableRotate = false; }
+                    else if (v === 'front') { camera.position.set(0,5,30); controls.target.set(0,3,0); controls.enableRotate = false; }
+                    else if (v === 'left') { camera.position.set(-30,5,0); controls.target.set(0,3,0); controls.enableRotate = false; }
+                    controls.update();
+                });
+            });
+
+            // --- 楼层管理 ---
+            function refreshFloorSelector() {
+                const select = document.getElementById('floor-select');
+                select.innerHTML = '';
+                project.floors.sort((a,b) => a.sort - b.sort).forEach(f => {
+                    const opt = document.createElement('option');
+                    opt.value = f.id;
+                    opt.textContent = f.name;
+                    if (f.id === project.currentFloorId) opt.selected = true;
+                    select.appendChild(opt);
+                });
+            }
+            document.getElementById('floor-select').addEventListener('change', (e) => {
+                project.currentFloorId = parseInt(e.target.value);
+                rebuildMesh();
+            });
+            document.getElementById('add-floor').addEventListener('click', () => {
+                const newId = Math.max(...project.floors.map(f => f.id), 0) + 1;
+                const newName = prompt('输入新楼层名称', (project.floors.length + 1) + 'F');
+                if (!newName) return;
+                project.floors.push({ id: newId, name: newName, height: 3000, sort: project.floors.length });
+                refreshFloorSelector();
+            });
+            document.getElementById('del-floor').addEventListener('click', () => {
+                if (project.floors.length <= 1) {
+                    alert('至少保留一个楼层');
+                    return;
+                }
+                const hasVoxels = voxels.some(v => v.floorId === project.currentFloorId);
+                if (hasVoxels && !confirm('该楼层有构件，确定删除？')) return;
+                voxels = voxels.filter(v => v.floorId !== project.currentFloorId);
+                project.floors = project.floors.filter(f => f.id !== project.currentFloorId);
+                project.currentFloorId = project.floors[0].id;
+                refreshFloorSelector();
+                rebuildMesh();
+            });
+            document.getElementById('rename-floor').addEventListener('click', () => {
+                const currentFloor = project.floors.find(f => f.id === project.currentFloorId);
+                const newName = prompt('输入新楼层名称', currentFloor.name);
+                if (newName) {
+                    currentFloor.name = newName;
+                    refreshFloorSelector();
+                }
+            });
+            refreshFloorSelector();
+
+            // --- 轴网编辑 ---
+            function editGrids() {
+                let xStr = prompt('输入X方向轴线位置（mm）和标签，格式：位置1,位置2... 用逗号分隔\n例如：0,3000,6000', 
+                    project.grids.x.map(g => g.pos).join(','));
+                if (xStr !== null) {
+                    let xLabels = prompt('输入对应X轴线的标签（用逗号分隔）', 
+                        project.grids.x.map(g => g.label).join(','));
+                    if (xLabels !== null) {
+                        const xPos = xStr.split(',').map(Number);
+                        const xLab = xLabels.split(',');
+                        project.grids.x = xPos.map((pos, i) => ({ pos, label: xLab[i] || String(i+1) }));
+                    }
+                }
+                let yStr = prompt('输入Y方向轴线位置（mm）和标签，格式：位置1,位置2...', 
+                    project.grids.y.map(g => g.pos).join(','));
+                if (yStr !== null) {
+                    let yLabels = prompt('输入对应Y轴线的标签', 
+                        project.grids.y.map(g => g.label).join(','));
+                    if (yLabels !== null) {
+                        const yPos = yStr.split(',').map(Number);
+                        const yLab = yLabels.split(',');
+                        project.grids.y = yPos.map((pos, i) => ({ pos, label: yLab[i] || String.fromCharCode(65+i) }));
+                    }
+                }
+            }
+            document.getElementById('gridBtn').addEventListener('click', editGrids);
+
+            // --- 保存/加载 ---
+            document.getElementById('file-save').addEventListener('click', () => {
+                const data = { project, voxels };
+                const json = JSON.stringify(data, (k, v) => {
+                    if (k === 'orientation' && v && v.isVector3) return { x: v.x, y: v.y, z: v.z };
+                    return v;
+                }, 2);
+                const blob = new Blob([json], { type: 'application/json' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = 'project.json';
+                a.click();
+                URL.revokeObjectURL(a.href);
+            });
+
+            document.getElementById('file-load').addEventListener('click', () => {
+                document.getElementById('load-file').click();
+            });
+
+            document.getElementById('load-file').addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const data = JSON.parse(e.target.result);
+                        project = data.project;
+                        voxels = data.voxels.map(v => ({
+                            ...v,
+                            orientation: new THREE.Vector3(v.orientation.x, v.orientation.y, v.orientation.z)
+                        }));
+                        refreshFloorSelector();
+                        rebuildMesh();
+                    } catch (err) {
+                        alert('文件格式错误');
+                    }
+                };
+                reader.readAsText(file);
+                e.target.value = '';
+            });
+
+            // ========== 专业导出函数（完整版） ==========
+            document.getElementById('file-export').addEventListener('click', () => {
+                const scaleStr = prompt('输入单位比例（mm/格，默认300）', '300') || '300';
+                const scaleNum = parseFloat(scaleStr);
+                if (isNaN(scaleNum)) return;
+
+                const exportAll = confirm('导出所有楼层？（取消则只导出当前楼层）');
+                let targetVoxels = exportAll ? voxels : getCurrentVoxels();
+                const targetFloors = exportAll ? project.floors : project.floors.filter(f => f.id === project.currentFloorId);
+
+                const entities = [];
+
+                // 根据类型和材质生成图层名
+                function getLayer(v) {
+                    const baseLayer = typeDefs.find(d => d.type === v.type)?.layer || '0';
+                    if (v.material && v.material !== 'concrete') {
+                        return baseLayer + '-' + v.material.toUpperCase();
+                    }
+                    return baseLayer;
+                }
+
+                // 收集门窗格子，用于墙体断开 (按 floorId 和 y 分组)
+                const openingsByKey = new Map();
+                targetVoxels.forEach(v => {
+                    if (v.type.startsWith('door') || v.type.startsWith('window') || v.type === 'french_window') {
+                        const key = `${v.floorId},${v.y}`;
+                        if (!openingsByKey.has(key)) openingsByKey.set(key, new Set());
+                        openingsByKey.get(key).add(`${v.x},${v.z}`);
+                    }
+                });
+
+                // 按 (floorId, y) 分组
+                const byFloorY = new Map();
+                targetVoxels.forEach(v => {
+                    const key = `${v.floorId},${v.y}`;
+                    if (!byFloorY.has(key)) byFloorY.set(key, []);
+                    byFloorY.get(key).push(v);
+                });
+
+                const wallThickness = scaleNum * 0.8;
+                const halfThick = wallThickness / 2;
+
+                // 处理墙体（双线）
+                for (let [key, items] of byFloorY.entries()) {
+                    const [floorId, y] = key.split(',').map(Number);
+                    const wallGrid = new Set();
+                    items.filter(v => v.type === 'wall').forEach(v => wallGrid.add(`${v.x},${v.z}`));
+                    const openings = openingsByKey.get(key) || new Set();
+
+                    // X方向
+                    for (let z = -20; z <= 20; z++) {
+                        let startX = null;
+                        for (let x = -20; x <= 20; x++) {
+                            const isWall = wallGrid.has(`${x},${z}`);
+                            const isOpening = openings.has(`${x},${z}`);
+                            if (isWall && !isOpening) {
+                                if (startX === null) startX = x;
+                            } else {
+                                if (startX !== null) {
+                                    const x1 = startX;
+                                    const x2 = x - 1;
+                                    if (x2 >= x1) {
+                                        const firstWall = items.find(v => v.x === x1 && v.z === z && v.type === 'wall');
+                                        const layer = firstWall ? getLayer(firstWall) : 'A-WALL';
+                                        entities.push(`0\nLINE\n8\n${layer}\n10\n${(x1 * scaleNum).toFixed(3)}\n20\n${(z * scaleNum - halfThick).toFixed(3)}\n30\n0\n11\n${((x2 + 1) * scaleNum).toFixed(3)}\n21\n${(z * scaleNum - halfThick).toFixed(3)}\n31\n0`);
+                                        entities.push(`0\nLINE\n8\n${layer}\n10\n${(x1 * scaleNum).toFixed(3)}\n20\n${(z * scaleNum + halfThick).toFixed(3)}\n30\n0\n11\n${((x2 + 1) * scaleNum).toFixed(3)}\n21\n${(z * scaleNum + halfThick).toFixed(3)}\n31\n0`);
+                                        if (!wallGrid.has(`${x1-1},${z}`) || openings.has(`${x1-1},${z}`)) {
+                                            entities.push(`0\nLINE\n8\n${layer}\n10\n${(x1 * scaleNum).toFixed(3)}\n20\n${(z * scaleNum - halfThick).toFixed(3)}\n30\n0\n11\n${(x1 * scaleNum).toFixed(3)}\n21\n${(z * scaleNum + halfThick).toFixed(3)}\n31\n0`);
+                                        }
+                                        if (!wallGrid.has(`${x2+1},${z}`) || openings.has(`${x2+1},${z}`)) {
+                                            entities.push(`0\nLINE\n8\n${layer}\n10\n${((x2 + 1) * scaleNum).toFixed(3)}\n20\n${(z * scaleNum - halfThick).toFixed(3)}\n30\n0\n11\n${((x2 + 1) * scaleNum).toFixed(3)}\n21\n${(z * scaleNum + halfThick).toFixed(3)}\n31\n0`);
+                                        }
+                                    }
+                                    startX = null;
+                                }
+                            }
+                        }
+                        if (startX !== null) {
+                            const x1 = startX;
+                            const x2 = 20;
+                            if (x2 >= x1) {
+                                const firstWall = items.find(v => v.x === x1 && v.z === z && v.type === 'wall');
+                                const layer = firstWall ? getLayer(firstWall) : 'A-WALL';
+                                entities.push(`0\nLINE\n8\n${layer}\n10\n${(x1 * scaleNum).toFixed(3)}\n20\n${(z * scaleNum - halfThick).toFixed(3)}\n30\n0\n11\n${((x2 + 1) * scaleNum).toFixed(3)}\n21\n${(z * scaleNum - halfThick).toFixed(3)}\n31\n0`);
+                                entities.push(`0\nLINE\n8\n${layer}\n10\n${(x1 * scaleNum).toFixed(3)}\n20\n${(z * scaleNum + halfThick).toFixed(3)}\n30\n0\n11\n${((x2 + 1) * scaleNum).toFixed(3)}\n21\n${(z * scaleNum + halfThick).toFixed(3)}\n31\n0`);
+                                if (!wallGrid.has(`${x1-1},${z}`) || openings.has(`${x1-1},${z}`)) {
+                                    entities.push(`0\nLINE\n8\n${layer}\n10\n${(x1 * scaleNum).toFixed(3)}\n20\n${(z * scaleNum - halfThick).toFixed(3)}\n30\n0\n11\n${(x1 * scaleNum).toFixed(3)}\n21\n${(z * scaleNum + halfThick).toFixed(3)}\n31\n0`);
+                                }
+                            }
+                        }
+                    }
+
+                    // Z方向
+                    for (let x = -20; x <= 20; x++) {
+                        let startZ = null;
+                        for (let z = -20; z <= 20; z++) {
+                            const isWall = wallGrid.has(`${x},${z}`);
+                            const isOpening = openings.has(`${x},${z}`);
+                            if (isWall && !isOpening) {
+                                if (startZ === null) startZ = z;
+                            } else {
+                                if (startZ !== null) {
+                                    const z1 = startZ;
+                                    const z2 = z - 1;
+                                    if (z2 >= z1) {
+                                        const firstWall = items.find(v => v.x === x && v.z === z1 && v.type === 'wall');
+                                        const layer = firstWall ? getLayer(firstWall) : 'A-WALL';
+                                        entities.push(`0\nLINE\n8\n${layer}\n10\n${(x * scaleNum - halfThick).toFixed(3)}\n20\n${(z1 * scaleNum).toFixed(3)}\n30\n0\n11\n${(x * scaleNum - halfThick).toFixed(3)}\n21\n${((z2 + 1) * scaleNum).toFixed(3)}\n31\n0`);
+                                        entities.push(`0\nLINE\n8\n${layer}\n10\n${(x * scaleNum + halfThick).toFixed(3)}\n20\n${(z1 * scaleNum).toFixed(3)}\n30\n0\n11\n${(x * scaleNum + halfThick).toFixed(3)}\n21\n${((z2 + 1) * scaleNum).toFixed(3)}\n31\n0`);
+                                        if (!wallGrid.has(`${x},${z1-1}`) || openings.has(`${x},${z1-1}`)) {
+                                            entities.push(`0\nLINE\n8\n${layer}\n10\n${(x * scaleNum - halfThick).toFixed(3)}\n20\n${(z1 * scaleNum).toFixed(3)}\n30\n0\n11\n${(x * scaleNum + halfThick).toFixed(3)}\n21\n${(z1 * scaleNum).toFixed(3)}\n31\n0`);
+                                        }
+                                        if (!wallGrid.has(`${x},${z2+1}`) || openings.has(`${x},${z2+1}`)) {
+                                            entities.push(`0\nLINE\n8\n${layer}\n10\n${(x * scaleNum - halfThick).toFixed(3)}\n20\n${((z2 + 1) * scaleNum).toFixed(3)}\n30\n0\n11\n${(x * scaleNum + halfThick).toFixed(3)}\n21\n${((z2 + 1) * scaleNum).toFixed(3)}\n31\n0`);
+                                        }
+                                    }
+                                    startZ = null;
+                                }
+                            }
+                        }
+                        if (startZ !== null) {
+                            const z1 = startZ;
+                            const z2 = 20;
+                            if (z2 >= z1) {
+                                const firstWall = items.find(v => v.x === x && v.z === z1 && v.type === 'wall');
+                                const layer = firstWall ? getLayer(firstWall) : 'A-WALL';
+                                entities.push(`0\nLINE\n8\n${layer}\n10\n${(x * scaleNum - halfThick).toFixed(3)}\n20\n${(z1 * scaleNum).toFixed(3)}\n30\n0\n11\n${(x * scaleNum - halfThick).toFixed(3)}\n21\n${((z2 + 1) * scaleNum).toFixed(3)}\n31\n0`);
+                                entities.push(`0\nLINE\n8\n${layer}\n10\n${(x * scaleNum + halfThick).toFixed(3)}\n20\n${(z1 * scaleNum).toFixed(3)}\n30\n0\n11\n${(x * scaleNum + halfThick).toFixed(3)}\n21\n${((z2 + 1) * scaleNum).toFixed(3)}\n31\n0`);
+                                if (!wallGrid.has(`${x},${z1-1}`) || openings.has(`${x},${z1-1}`)) {
+                                    entities.push(`0\nLINE\n8\n${layer}\n10\n${(x * scaleNum - halfThick).toFixed(3)}\n20\n${(z1 * scaleNum).toFixed(3)}\n30\n0\n11\n${(x * scaleNum + halfThick).toFixed(3)}\n21\n${(z1 * scaleNum).toFixed(3)}\n31\n0`);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 门符号
+                targetVoxels.forEach(v => {
+                    if (!v.type.startsWith('door')) return;
+                    const cx = v.x * scaleNum;
+                    const cz = v.z * scaleNum;
+                    const dir = v.orientation;
+                    const doorWidth = v.width * scaleNum;
+                    const halfThick = v.depth * scaleNum / 2;
+                    const layer = getLayer(v);
+
+                    if (v.type === 'door_single') {
+                        let hingeX = cx, hingeZ = cz;
+                        if (Math.abs(dir.x) > 0.5) {
+                            if (dir.x > 0) hingeX = cx - halfThick;
+                            else hingeX = cx + halfThick;
+                        } else if (Math.abs(dir.z) > 0.5) {
+                            if (dir.z > 0) hingeZ = cz - halfThick;
+                            else hingeZ = cz + halfThick;
+                        } else return;
+                        const swingX = hingeX + dir.x * doorWidth;
+                        const swingZ = hingeZ + dir.z * doorWidth;
+                        entities.push(`0\nLINE\n8\n${layer}\n10\n${hingeX.toFixed(3)}\n20\n${hingeZ.toFixed(3)}\n30\n0\n11\n${swingX.toFixed(3)}\n21\n${swingZ.toFixed(3)}\n31\n0`);
+
+                        let startAngle, endAngle;
+                        if (Math.abs(dir.x) > 0.5) {
+                            if (dir.x > 0) { startAngle = 0; endAngle = 90; }
+                            else { startAngle = 180; endAngle = 270; }
+                        } else {
+                            if (dir.z > 0) { startAngle = 90; endAngle = 180; }
+                            else { startAngle = 270; endAngle = 360; }
+                        }
+                        entities.push(`0\nARC\n8\n${layer}\n10\n${hingeX.toFixed(3)}\n20\n${hingeZ.toFixed(3)}\n30\n0\n40\n${doorWidth.toFixed(3)}\n50\n${startAngle.toFixed(3)}\n51\n${endAngle.toFixed(3)}`);
+                    }
+                    else if (v.type === 'door_double') {
+                        const halfWidth = doorWidth / 2;
+                        let leftHingeX = cx - halfThick, leftHingeZ = cz;
+                        let rightHingeX = cx + halfThick, rightHingeZ = cz;
+                        if (Math.abs(dir.z) > 0.5) {
+                            leftHingeX = cx; leftHingeZ = cz - halfThick;
+                            rightHingeX = cx; rightHingeZ = cz + halfThick;
+                        }
+                        const swingLeftX = leftHingeX + dir.x * halfWidth;
+                        const swingLeftZ = leftHingeZ + dir.z * halfWidth;
+                        entities.push(`0\nLINE\n8\n${layer}\n10\n${leftHingeX.toFixed(3)}\n20\n${leftHingeZ.toFixed(3)}\n30\n0\n11\n${swingLeftX.toFixed(3)}\n21\n${swingLeftZ.toFixed(3)}\n31\n0`);
+                        const swingRightX = rightHingeX - dir.x * halfWidth;
+                        const swingRightZ = rightHingeZ - dir.z * halfWidth;
+                        entities.push(`0\nLINE\n8\n${layer}\n10\n${rightHingeX.toFixed(3)}\n20\n${rightHingeZ.toFixed(3)}\n30\n0\n11\n${swingRightX.toFixed(3)}\n21\n${swingRightZ.toFixed(3)}\n31\n0`);
+
+                        let startAngle1, endAngle1, startAngle2, endAngle2;
+                        if (Math.abs(dir.x) > 0.5) {
+                            if (dir.x > 0) {
+                                startAngle1 = 0; endAngle1 = 90;
+                                startAngle2 = 180; endAngle2 = 270;
+                            } else {
+                                startAngle1 = 180; endAngle1 = 270;
+                                startAngle2 = 0; endAngle2 = 90;
+                            }
+                        } else {
+                            if (dir.z > 0) {
+                                startAngle1 = 90; endAngle1 = 180;
+                                startAngle2 = 270; endAngle2 = 360;
+                            } else {
+                                startAngle1 = 270; endAngle1 = 360;
+                                startAngle2 = 90; endAngle2 = 180;
+                            }
+                        }
+                        entities.push(`0\nARC\n8\n${layer}\n10\n${leftHingeX.toFixed(3)}\n20\n${leftHingeZ.toFixed(3)}\n30\n0\n40\n${halfWidth.toFixed(3)}\n50\n${startAngle1.toFixed(3)}\n51\n${endAngle1.toFixed(3)}`);
+                        entities.push(`0\nARC\n8\n${layer}\n10\n${rightHingeX.toFixed(3)}\n20\n${rightHingeZ.toFixed(3)}\n30\n0\n40\n${halfWidth.toFixed(3)}\n50\n${startAngle2.toFixed(3)}\n51\n${endAngle2.toFixed(3)}`);
+                    }
+                    else if (v.type === 'door_sliding') {
+                        const w = doorWidth * 0.4;
+                        if (Math.abs(dir.x) > 0.5) {
+                            entities.push(`0\nLINE\n8\n${layer}\n10\n${(cx - w).toFixed(3)}\n20\n${(cz - halfThick).toFixed(3)}\n30\n0\n11\n${(cx - w).toFixed(3)}\n21\n${(cz + halfThick).toFixed(3)}\n31\n0`);
+                            entities.push(`0\nLINE\n8\n${layer}\n10\n${(cx + w).toFixed(3)}\n20\n${(cz - halfThick).toFixed(3)}\n30\n0\n11\n${(cx + w).toFixed(3)}\n21\n${(cz + halfThick).toFixed(3)}\n31\n0`);
+                        } else {
+                            entities.push(`0\nLINE\n8\n${layer}\n10\n${(cx - halfThick).toFixed(3)}\n20\n${(cz - w).toFixed(3)}\n30\n0\n11\n${(cx + halfThick).toFixed(3)}\n21\n${(cz - w).toFixed(3)}\n31\n0`);
+                            entities.push(`0\nLINE\n8\n${layer}\n10\n${(cx - halfThick).toFixed(3)}\n20\n${(cz + w).toFixed(3)}\n30\n0\n11\n${(cx + halfThick).toFixed(3)}\n21\n${(cz + w).toFixed(3)}\n31\n0`);
+                        }
+                    }
+                });
+
+                // 窗符号
+                targetVoxels.forEach(v => {
+                    if (!v.type.startsWith('window') && v.type !== 'french_window') return;
+                    const cx = v.x * scaleNum;
+                    const cz = v.z * scaleNum;
+                    const w = v.width * scaleNum;
+                    const d = v.depth * scaleNum;
+                    const halfW = w / 2;
+                    const halfD = d / 2;
+                    const layer = getLayer(v);
+
+                    if (v.type === 'window_casement') {
+                        entities.push(`0\nLINE\n8\n${layer}\n10\n${(cx - halfW).toFixed(3)}\n20\n${(cz - halfD).toFixed(3)}\n30\n0\n11\n${(cx + halfW).toFixed(3)}\n21\n${(cz - halfD).toFixed(3)}\n31\n0`);
+                        entities.push(`0\nLINE\n8\n${layer}\n10\n${(cx + halfW).toFixed(3)}\n20\n${(cz - halfD).toFixed(3)}\n30\n0\n11\n${(cx + halfW).toFixed(3)}\n21\n${(cz + halfD).toFixed(3)}\n31\n0`);
+                        entities.push(`0\nLINE\n8\n${layer}\n10\n${(cx + halfW).toFixed(3)}\n20\n${(cz + halfD).toFixed(3)}\n30\n0\n11\n${(cx - halfW).toFixed(3)}\n21\n${(cz + halfD).toFixed(3)}\n31\n0`);
+                        entities.push(`0\nLINE\n8\n${layer}\n10\n${(cx - halfW).toFixed(3)}\n20\n${(cz + halfD).toFixed(3)}\n30\n0\n11\n${(cx - halfW).toFixed(3)}\n21\n${(cz - halfD).toFixed(3)}\n31\n0`);
+                        entities.push(`0\nLINE\n8\n${layer}\n10\n${(cx - halfW).toFixed(3)}\n20\n${cz.toFixed(3)}\n30\n0\n11\n${(cx + halfW).toFixed(3)}\n21\n${cz.toFixed(3)}\n31\n0`);
+                        entities.push(`0\nLINE\n8\n${layer}\n10\n${cx.toFixed(3)}\n20\n${(cz - halfD).toFixed(3)}\n30\n0\n11\n${cx.toFixed(3)}\n21\n${(cz + halfD).toFixed(3)}\n31\n0`);
+                    }
+                    else if (v.type === 'window_sliding') {
+                        entities.push(`0\nLINE\n8\n${layer}\n10\n${(cx - halfW).toFixed(3)}\n20\n${(cz - halfD).toFixed(3)}\n30\n0\n11\n${(cx + halfW).toFixed(3)}\n21\n${(cz - halfD).toFixed(3)}\n31\n0`);
+                        entities.push(`0\nLINE\n8\n${layer}\n10\n${(cx + halfW).toFixed(3)}\n20\n${(cz - halfD).toFixed(3)}\n30\n0\n11\n${(cx + halfW).toFixed(3)}\n21\n${(cz + halfD).toFixed(3)}\n31\n0`);
+                        entities.push(`0\nLINE\n8\n${layer}\n10\n${(cx + halfW).toFixed(3)}\n20\n${(cz + halfD).toFixed(3)}\n30\n0\n11\n${(cx - halfW).toFixed(3)}\n21\n${(cz + halfD).toFixed(3)}\n31\n0`);
+                        entities.push(`0\nLINE\n8\n${layer}\n10\n${(cx - halfW).toFixed(3)}\n20\n${(cz + halfD).toFixed(3)}\n30\n0\n11\n${(cx - halfW).toFixed(3)}\n21\n${(cz - halfD).toFixed(3)}\n31\n0`);
+                        entities.push(`0\nLINE\n8\n${layer}\n10\n${cx.toFixed(3)}\n20\n${(cz - halfD).toFixed(3)}\n30\n0\n11\n${cx.toFixed(3)}\n21\n${(cz + halfD).toFixed(3)}\n31\n0`);
+                    }
+                    else if (v.type === 'french_window') {
+                        const w2 = v.width * scaleNum * 1.2;
+                        const d2 = v.depth * scaleNum * 1.2;
+                        const halfW2 = w2 / 2;
+                        const halfD2 = d2 / 2;
+                        entities.push(`0\nLINE\n8\n${layer}\n10\n${(cx - halfW2).toFixed(3)}\n20\n${(cz - halfD2).toFixed(3)}\n30\n0\n11\n${(cx + halfW2).toFixed(3)}\n21\n${(cz - halfD2).toFixed(3)}\n31\n0`);
+                        entities.push(`0\nLINE\n8\n${layer}\n10\n${(cx + halfW2).toFixed(3)}\n20\n${(cz - halfD2).toFixed(3)}\n30\n0\n11\n${(cx + halfW2).toFixed(3)}\n21\n${(cz + halfD2).toFixed(3)}\n31\n0`);
+                        entities.push(`0\nLINE\n8\n${layer}\n10\n${(cx + halfW2).toFixed(3)}\n20\n${(cz + halfD2).toFixed(3)}\n30\n0\n11\n${(cx - halfW2).toFixed(3)}\n21\n${(cz + halfD2).toFixed(3)}\n31\n0`);
+                        entities.push(`0\nLINE\n8\n${layer}\n10\n${(cx - halfW2).toFixed(3)}\n20\n${(cz + halfD2).toFixed(3)}\n30\n0\n11\n${(cx - halfW2).toFixed(3)}\n21\n${(cz - halfD2).toFixed(3)}\n31\n0`);
+                        entities.push(`0\nLINE\n8\n${layer}\n10\n${(cx - halfW2).toFixed(3)}\n20\n${cz.toFixed(3)}\n30\n0\n11\n${(cx + halfW2).toFixed(3)}\n21\n${cz.toFixed(3)}\n31\n0`);
+                    }
+                });
+
+                // 其他构件（柱、梁、楼板、楼梯）用矩形
+                const drawRect = (layer, cx, cz, w, d) => {
+                    const halfW = w / 2;
+                    const halfD = d / 2;
+                    entities.push(`0\nLINE\n8\n${layer}\n10\n${(cx - halfW).toFixed(3)}\n20\n${(cz - halfD).toFixed(3)}\n30\n0\n11\n${(cx + halfW).toFixed(3)}\n21\n${(cz - halfD).toFixed(3)}\n31\n0`);
+                    entities.push(`0\nLINE\n8\n${layer}\n10\n${(cx + halfW).toFixed(3)}\n20\n${(cz - halfD).toFixed(3)}\n30\n0\n11\n${(cx + halfW).toFixed(3)}\n21\n${(cz + halfD).toFixed(3)}\n31\n0`);
+                    entities.push(`0\nLINE\n8\n${layer}\n10\n${(cx + halfW).toFixed(3)}\n20\n${(cz + halfD).toFixed(3)}\n30\n0\n11\n${(cx - halfW).toFixed(3)}\n21\n${(cz + halfD).toFixed(3)}\n31\n0`);
+                    entities.push(`0\nLINE\n8\n${layer}\n10\n${(cx - halfW).toFixed(3)}\n20\n${(cz + halfD).toFixed(3)}\n30\n0\n11\n${(cx - halfW).toFixed(3)}\n21\n${(cz - halfD).toFixed(3)}\n31\n0`);
+                };
+
+                targetVoxels.forEach(v => {
+                    if (v.type === 'wall' || v.type.startsWith('door') || v.type.startsWith('window') || v.type === 'french_window') return;
+                    const layer = getLayer(v);
+                    const cx = v.x * scaleNum;
+                    const cz = v.z * scaleNum;
+                    const w = v.width * scaleNum;
+                    const d = v.depth * scaleNum;
+                    drawRect(layer, cx, cz, w, d);
+                });
+
+                // 轴网
+                const axisExtent = 20000;
+                project.grids.x.forEach(g => {
+                    entities.push(`0\nLINE\n8\nA-AXIS\n10\n${g.pos}\n20\n${-axisExtent}\n30\n0\n11\n${g.pos}\n21\n${axisExtent}\n31\n0`);
+                    entities.push(`0\nCIRCLE\n8\nA-AXIS\n10\n${g.pos}\n20\n${-axisExtent}\n30\n0\n40\n300`);
+                });
+                project.grids.y.forEach(g => {
+                    entities.push(`0\nLINE\n8\nA-AXIS\n10\n${-axisExtent}\n20\n${g.pos}\n30\n0\n11\n${axisExtent}\n21\n${g.pos}\n31\n0`);
+                    entities.push(`0\nCIRCLE\n8\nA-AXIS\n10\n${-axisExtent}\n20\n${g.pos}\n30\n0\n40\n300`);
+                });
+
+                // 标注
+                const targetDims = exportAll ? project.dimensions : project.dimensions.filter(d => d.floorId === project.currentFloorId);
+                targetDims.forEach(dim => {
+                    const [x1, y1] = dim.p1;
+                    const [x2, y2] = dim.p2;
+                    const off = 500;
+                    const dx = x2 - x1, dy = y2 - y1;
+                    const len = Math.sqrt(dx*dx + dy*dy);
+                    if (len < 0.1) return;
+                    const nx = -dy / len * off;
+                    const ny = dx / len * off;
+                    const mx1 = x1 + nx, my1 = y1 + ny;
+                    const mx2 = x2 + nx, my2 = y2 + ny;
+                    entities.push(`0\nLINE\n8\nA-DIM\n10\n${mx1.toFixed(3)}\n20\n${my1.toFixed(3)}\n30\n0\n11\n${mx2.toFixed(3)}\n21\n${my2.toFixed(3)}\n31\n0`);
+                    entities.push(`0\nLINE\n8\nA-DIM\n10\n${x1.toFixed(3)}\n20\n${y1.toFixed(3)}\n30\n0\n11\n${mx1.toFixed(3)}\n21\n${my1.toFixed(3)}\n31\n0`);
+                    entities.push(`0\nLINE\n8\nA-DIM\n10\n${x2.toFixed(3)}\n20\n${y2.toFixed(3)}\n30\n0\n11\n${mx2.toFixed(3)}\n21\n${my2.toFixed(3)}\n31\n0`);
+                    const cx = (x1 + x2)/2 + nx;
+                    const cy = (y1 + y2)/2 + ny;
+                    entities.push(`0\nTEXT\n8\nA-DIM\n10\n${cx.toFixed(3)}\n20\n${cy.toFixed(3)}\n30\n0\n40\n250\n1\n${dim.text}\n`);
+                });
+
+                // 收集所有用到的图层
+                const allLayersSet = new Set(['0', 'A-AXIS', 'A-DIM']);
+                targetVoxels.forEach(v => allLayersSet.add(getLayer(v)));
+                const layerList = Array.from(allLayersSet);
+
+                // 构建DXF头部（线型表和图层表）
+                let dxf = `0\nSECTION\n2\nHEADER\n0\nENDSEC\n0\nSECTION\n2\nTABLES\n`;
+                dxf += `0\nTABLE\n2\nLTYPE\n70\n4\n`;
+                dxf += `0\nLTYPE\n2\nCONTINUOUS\n70\n0\n3\nSolid line\n72\n65\n73\n0\n40\n0.0\n`;
+                dxf += `0\nLTYPE\n2\nDASHED\n70\n0\n3\nDashed __ __ __ __ __ __ __ __ __ __ __ __ __ _\n72\n65\n73\n2\n40\n6.35\n49\n3.175\n49\n-1.5875\n`;
+                dxf += `0\nLTYPE\n2\nCENTER\n70\n0\n3\nCenter ____ _ ____ _ ____ _ ____ _ ____ _ ____\n72\n65\n73\n4\n40\n15.875\n49\n7.9375\n49\n-1.5875\n49\n1.5875\n49\n-1.5875\n`;
+                dxf += `0\nENDTAB\n`;
+
+                dxf += `0\nTABLE\n2\nLAYER\n70\n${layerList.length}\n`;
+                dxf += `0\nLAYER\n2\n0\n70\n0\n62\n7\n6\nCONTINUOUS\n`;
+                layerList.forEach(layer => {
+                    if (layer === '0') return;
+                    let color = 7;
+                    let linetype = 'CONTINUOUS';
+                    if (layer.includes('WALL')) color = 1;
+                    else if (layer.includes('DOOR')) color = 3;
+                    else if (layer.includes('WINDOW')) color = 4;
+                    else if (layer.includes('STAIR')) color = 5;
+                    else if (layer.includes('COLUMN')) color = 6;
+                    else if (layer.includes('BEAM')) color = 2;
+                    else if (layer.includes('SLAB')) color = 8;
+                    else if (layer === 'A-AXIS') { color = 1; linetype = 'CENTER'; }
+                    else if (layer === 'A-DIM') { color = 4; linetype = 'CONTINUOUS'; }
+                    dxf += `0\nLAYER\n2\n${layer}\n70\n0\n62\n${color}\n6\n${linetype}\n`;
+                });
+                dxf += `0\nENDTAB\n0\nENDSEC\n`;
+
+                dxf += `0\nSECTION\n2\nENTITIES\n`;
+                dxf += entities.join('\n');
+                dxf += `\n0\nENDSEC\n0\nEOF`;
+
+                const blob = new Blob([dxf], { type: 'application/dxf' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = 'model.dxf';
+                a.click();
+                URL.revokeObjectURL(a.href);
+            });
+
+            // ========== 预览功能 ==========
+            const previewOverlay = document.getElementById('preview-overlay');
+            const previewCanvas = document.getElementById('preview-canvas');
+            const previewCtx = previewCanvas.getContext('2d');
+            const previewClose = document.getElementById('preview-close');
+
+            let isPreviewing = false;
+            let previewScale = 30;
+            let previewOffsetX = 0, previewOffsetY = 0;
+            let lastTouchX, lastTouchY;
+
+            document.getElementById('preview-btn').addEventListener('click', () => {
+                previewOverlay.style.display = 'block';
+                isPreviewing = true;
+                resizeCanvas();
+                drawPreview();
+            });
+
+            previewClose.addEventListener('click', () => {
+                previewOverlay.style.display = 'none';
+                isPreviewing = false;
+            });
+
+            function resizeCanvas() {
+                previewCanvas.width = previewOverlay.clientWidth;
+                previewCanvas.height = previewOverlay.clientHeight;
+            }
+
+            function drawPreview() {
+                if (!isPreviewing) return;
+                const w = previewCanvas.width;
+                const h = previewCanvas.height;
+                previewCtx.clearRect(0, 0, w, h);
+
+                const currentVoxels = getCurrentVoxels();
+                if (currentVoxels.length === 0) {
+                    previewCtx.fillStyle = '#aaa';
+                    previewCtx.font = '20px Arial';
+                    previewCtx.textAlign = 'center';
+                    previewCtx.fillText('当前楼层无构件', w/2, h/2);
+                    requestAnimationFrame(drawPreview);
+                    return;
+                }
+
+                // 计算边界
+                let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+                currentVoxels.forEach(v => {
+                    minX = Math.min(minX, v.x);
+                    maxX = Math.max(maxX, v.x + 1);
+                    minZ = Math.min(minZ, v.z);
+                    maxZ = Math.max(maxZ, v.z + 1);
+                });
+                const centerX = (minX + maxX) / 2;
+                const centerZ = (minZ + maxZ) / 2;
+
+                previewCtx.save();
+                previewCtx.translate(w/2 + previewOffsetX, h/2 + previewOffsetY);
+                previewCtx.scale(1, -1);
+                previewCtx.translate(-centerX * previewScale, -centerZ * previewScale);
+                previewCtx.scale(previewScale, previewScale);
+                previewCtx.lineWidth = 0.1 / previewScale;
+
+                const wallThickness = 0.8;
+                const halfThick = wallThickness / 2;
+
+                // 绘制墙体（简化双线）
+                const walls = currentVoxels.filter(v => v.type === 'wall');
+                walls.forEach(v => {
+                    const x = v.x, z = v.z;
+                    previewCtx.fillStyle = 'rgba(255,255,255,0.5)';
+                    previewCtx.fillRect(x - halfThick, z - halfThick, 1 + wallThickness, 1 + wallThickness);
+                    previewCtx.strokeStyle = '#fff';
+                    previewCtx.lineWidth = 0.03;
+                    previewCtx.strokeRect(x - halfThick, z - halfThick, 1 + wallThickness, 1 + wallThickness);
+                });
+
+                // 门符号
+                currentVoxels.filter(v => v.type.startsWith('door')).forEach(v => {
+                    const x = v.x, z = v.z;
+                    previewCtx.strokeStyle = '#0f0';
+                    previewCtx.lineWidth = 0.05;
+                    if (Math.abs(v.orientation.x) > 0.5) {
+                        previewCtx.beginPath();
+                        previewCtx.moveTo(x - 0.4, z);
+                        previewCtx.lineTo(x + 0.4, z);
+                        previewCtx.stroke();
+                    } else {
+                        previewCtx.beginPath();
+                        previewCtx.moveTo(x, z - 0.4);
+                        previewCtx.lineTo(x, z + 0.4);
+                        previewCtx.stroke();
+                    }
+                });
+
+                // 窗符号
+                currentVoxels.filter(v => v.type.startsWith('window') || v.type === 'french_window').forEach(v => {
+                    const x = v.x, z = v.z;
+                    previewCtx.strokeStyle = '#00f';
+                    previewCtx.lineWidth = 0.05;
+                    previewCtx.beginPath();
+                    previewCtx.arc(x, z, 0.3, 0, 2*Math.PI);
+                    previewCtx.stroke();
+                });
+
+                // 其他构件（柱、梁、楼板、楼梯）
+                currentVoxels.filter(v => !v.type.startsWith('wall') && !v.type.startsWith('door') && !v.type.startsWith('window') && v.type !== 'french_window').forEach(v => {
+                    const x = v.x, z = v.z;
+                    previewCtx.fillStyle = 'rgba(255,255,0,0.3)';
+                    previewCtx.fillRect(x - v.width/2, z - v.depth/2, v.width, v.depth);
+                });
+
+                previewCtx.restore();
+                requestAnimationFrame(drawPreview);
+            }
+
+            // 缩放和平移事件
+            previewCanvas.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const delta = e.deltaY > 0 ? 0.9 : 1.1;
+                previewScale *= delta;
+                previewScale = Math.max(5, Math.min(200, previewScale));
+            });
+
+            previewCanvas.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                if (e.touches.length === 1) {
+                    lastTouchX = e.touches[0].clientX;
+                    lastTouchY = e.touches[0].clientY;
+                }
+            });
+
+            previewCanvas.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                if (e.touches.length === 1 && lastTouchX !== undefined) {
+                    const dx = e.touches[0].clientX - lastTouchX;
+                    const dy = e.touches[0].clientY - lastTouchY;
+                    previewOffsetX += dx;
+                    previewOffsetY += dy;
+                    lastTouchX = e.touches[0].clientX;
+                    lastTouchY = e.touches[0].clientY;
+                }
+            });
+
+            previewCanvas.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                lastTouchX = undefined;
+                lastTouchY = undefined;
+            });
+
+            previewCanvas.addEventListener('mousedown', (e) => {
+                lastTouchX = e.clientX;
+                lastTouchY = e.clientY;
+            });
+            previewCanvas.addEventListener('mousemove', (e) => {
+                if (lastTouchX !== undefined) {
+                    const dx = e.clientX - lastTouchX;
+                    const dy = e.clientY - lastTouchY;
+                    previewOffsetX += dx;
+                    previewOffsetY += dy;
+                    lastTouchX = e.clientX;
+                    lastTouchY = e.clientY;
+                }
+            });
+            previewCanvas.addEventListener('mouseup', () => {
+                lastTouchX = undefined;
+            });
+            previewCanvas.addEventListener('mouseleave', () => {
+                lastTouchX = undefined;
+            });
+
+            window.addEventListener('resize', () => {
+                if (isPreviewing) resizeCanvas();
+            });
+
+            // --- 动画循环 ---
+            function animate() {
+                requestAnimationFrame(animate);
+                controls.update();
+                renderer.render(scene, camera);
+            }
+            animate();
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        })();
+    </script>
+</body>
+</html>
